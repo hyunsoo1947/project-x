@@ -1,0 +1,137 @@
+# ------------------------------------------------------------------
+# Managed addon versions resolved per cluster K8s version, so a
+# version bump on the cluster pulls the matching addons. Hardcoded
+# addon versions go stale fast; don't.
+# ------------------------------------------------------------------
+
+data "aws_eks_addon_version" "vpc_cni" {
+  addon_name         = "vpc-cni"
+  kubernetes_version = aws_eks_cluster.main.version
+  most_recent        = true
+}
+
+data "aws_eks_addon_version" "coredns" {
+  addon_name         = "coredns"
+  kubernetes_version = aws_eks_cluster.main.version
+  most_recent        = true
+}
+
+data "aws_eks_addon_version" "kube_proxy" {
+  addon_name         = "kube-proxy"
+  kubernetes_version = aws_eks_cluster.main.version
+  most_recent        = true
+}
+
+data "aws_eks_addon_version" "ebs_csi" {
+  addon_name         = "aws-ebs-csi-driver"
+  kubernetes_version = aws_eks_cluster.main.version
+  most_recent        = true
+}
+
+data "aws_eks_addon_version" "pod_identity" {
+  addon_name         = "eks-pod-identity-agent"
+  kubernetes_version = aws_eks_cluster.main.version
+  most_recent        = true
+}
+
+# ------------------------------------------------------------------
+# vpc-cni — prefix delegation enabled so a single ENI hands out /28
+# slabs of IPs. Without this, pod density per node is bounded by ENI
+# count × IPs/ENI, which is brutally low on small instance types.
+# ------------------------------------------------------------------
+
+resource "aws_eks_addon" "vpc_cni" {
+  cluster_name  = aws_eks_cluster.main.name
+  addon_name    = "vpc-cni"
+  addon_version = data.aws_eks_addon_version.vpc_cni.version
+
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+
+  configuration_values = jsonencode({
+    env = {
+      ENABLE_PREFIX_DELEGATION = "true"
+      WARM_PREFIX_TARGET       = "1"
+    }
+  })
+
+  tags = {
+    Name = "routebox-${var.environment}-vpc-cni"
+  }
+}
+
+# coredns needs nodes to schedule on — depend on the node group.
+resource "aws_eks_addon" "coredns" {
+  cluster_name  = aws_eks_cluster.main.name
+  addon_name    = "coredns"
+  addon_version = data.aws_eks_addon_version.coredns.version
+
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+
+  tags = {
+    Name = "routebox-${var.environment}-coredns"
+  }
+
+  depends_on = [aws_eks_node_group.main]
+}
+
+resource "aws_eks_addon" "kube_proxy" {
+  cluster_name  = aws_eks_cluster.main.name
+  addon_name    = "kube-proxy"
+  addon_version = data.aws_eks_addon_version.kube_proxy.version
+
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+
+  tags = {
+    Name = "routebox-${var.environment}-kube-proxy"
+  }
+}
+
+resource "aws_eks_addon" "ebs_csi" {
+  cluster_name             = aws_eks_cluster.main.name
+  addon_name               = "aws-ebs-csi-driver"
+  addon_version            = data.aws_eks_addon_version.ebs_csi.version
+  service_account_role_arn = aws_iam_role.ebs_csi.arn
+
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+
+  tags = {
+    Name = "routebox-${var.environment}-ebs-csi"
+  }
+}
+
+resource "aws_eks_addon" "pod_identity" {
+  cluster_name  = aws_eks_cluster.main.name
+  addon_name    = "eks-pod-identity-agent"
+  addon_version = data.aws_eks_addon_version.pod_identity.version
+
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+
+  tags = {
+    Name = "routebox-${var.environment}-pod-identity"
+  }
+}
+
+# ------------------------------------------------------------------
+# Per-cluster subnet tag.
+#
+# kubernetes.io/role/elb is on the subnet itself (network module).
+# kubernetes.io/cluster/<cluster-name> = "shared" is cluster-scoped,
+# so it's owned by this module and applied via aws_ec2_tag — that
+# way the tag's lifecycle tracks the cluster, not the network.
+#
+# Modern AWS Load Balancer Controller doesn't strictly require this,
+# but older controllers and a few third-party tools still look for it.
+# ------------------------------------------------------------------
+
+resource "aws_ec2_tag" "public_subnet_cluster" {
+  for_each = toset(var.public_subnet_ids)
+
+  resource_id = each.value
+  key         = "kubernetes.io/cluster/${local.cluster_name}"
+  value       = "shared"
+}
