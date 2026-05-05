@@ -34,3 +34,58 @@ variable "cost_center" {
   type        = string
   default     = "platform"
 }
+
+variable "enable_nat_gateway" {
+  description = "Toggle the network module's NAT gateway on or off. Default off — private subnets have no internet egress when off."
+  type        = bool
+}
+
+# ------------------------------------------------------------------
+# EKS — surface mirrors the eks module's variables. Values come
+# from <env>.tfvars; no defaults at this layer.
+# ------------------------------------------------------------------
+
+variable "eks_kubernetes_version" {
+  description = "Kubernetes minor version pinned on the EKS cluster."
+  type        = string
+}
+
+variable "eks_endpoint_public_access_cidrs" {
+  description = "CIDRs allowed to reach the API server. Public + IAM-gated."
+  type        = list(string)
+}
+
+variable "eks_node_instance_types" {
+  description = "Allowed node instance types for the managed node group."
+  type        = list(string)
+}
+
+variable "eks_node_capacity_type" {
+  description = "Node capacity type: SPOT or ON_DEMAND."
+  type        = string
+}
+
+variable "eks_node_disk_size_gb" {
+  description = "Root EBS volume size per node, GiB."
+  type        = number
+}
+
+variable "eks_node_min_size" {
+  description = "Minimum node count."
+  type        = number
+}
+
+variable "eks_node_desired_size" {
+  description = "Desired node count at apply time. Subsequent changes are ignored so the cluster autoscaler can drift it."
+  type        = number
+}
+
+variable "eks_node_max_size" {
+  description = "Maximum node count."
+  type        = number
+}
+
+variable "eks_cluster_admin_role_arns" {
+  description = "IAM role ARNs to grant cluster-admin via EKS access entries (AmazonEKSClusterAdminPolicy, scope = cluster). Typically the SSO admin role for this account."
+  type        = list(string)
+}
