@@ -77,9 +77,15 @@ resource "aws_subnet" "public" {
   availability_zone       = each.value.az
   map_public_ip_on_launch = true
 
+  # kubernetes.io/role/elb tags let the AWS Load Balancer Controller
+  # auto-discover subnets for internet-facing LBs. They're a network
+  # property and apply regardless of whether an EKS cluster is up.
+  # Per-cluster kubernetes.io/cluster/<name> tags are managed by the
+  # eks module via aws_ec2_tag, not here.
   tags = {
-    Name = "routebox-${var.environment}-public-${each.key}"
-    Tier = "public"
+    Name                     = "routebox-${var.environment}-public-${each.key}"
+    Tier                     = "public"
+    "kubernetes.io/role/elb" = "1"
   }
 }
 
@@ -92,8 +98,9 @@ resource "aws_subnet" "private" {
   map_public_ip_on_launch = false
 
   tags = {
-    Name = "routebox-${var.environment}-private-${each.key}"
-    Tier = "private"
+    Name                              = "routebox-${var.environment}-private-${each.key}"
+    Tier                              = "private"
+    "kubernetes.io/role/internal-elb" = "1"
   }
 }
 
@@ -101,9 +108,14 @@ resource "aws_subnet" "private" {
 # NAT — single gateway in public-a. Cheap, but a SPOF. There were
 # originally three (one per AZ); collapsed to one a while back and
 # never put back. See module README.
+#
+# Optional via enable_nat_gateway. Default off: private subnets have
+# no default route and no internet egress.
 # ------------------------------------------------------------------
 
 resource "aws_eip" "nat" {
+  count = var.enable_nat_gateway ? 1 : 0
+
   domain     = "vpc"
   depends_on = [aws_internet_gateway.main]
 
@@ -113,7 +125,9 @@ resource "aws_eip" "nat" {
 }
 
 resource "aws_nat_gateway" "main" {
-  allocation_id = aws_eip.nat.allocation_id
+  count = var.enable_nat_gateway ? 1 : 0
+
+  allocation_id = aws_eip.nat[0].allocation_id
   subnet_id     = aws_subnet.public["a"].id
 
   tags = {
@@ -157,10 +171,16 @@ resource "aws_route_table" "private" {
   }
 }
 
+# Conditional default route through NAT. The route table itself and
+# its associations always exist — only the route through NAT is
+# gated. With enable_nat_gateway = false the private route table has
+# no default route, which is the explicit egress-less posture.
 resource "aws_route" "private_default" {
+  count = var.enable_nat_gateway ? 1 : 0
+
   route_table_id         = aws_route_table.private.id
   destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = aws_nat_gateway.main.id
+  nat_gateway_id         = aws_nat_gateway.main[0].id
 }
 
 resource "aws_route_table_association" "private" {

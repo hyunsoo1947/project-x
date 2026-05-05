@@ -1,6 +1,6 @@
 # network
 
-Terraform port of `routebox-infra/cfn/network/template.yaml`. Builds a single-region VPC for one Routebox environment: VPC, three public + three private subnets across the first three AZs, an internet gateway, a single NAT gateway, route tables, and the four "default" security groups (`alb`, `ecs`, `rds`, `jenkins`) that the rest of the infra references.
+Terraform port of `routebox-infra/cfn/network/template.yaml`. Builds a single-region VPC for one Routebox environment: VPC, three public + three private subnets across the first three AZs, an internet gateway, an optional NAT gateway, route tables, and the four "default" security groups (`alb`, `ecs`, `rds`, `jenkins`) that the rest of the infra references.
 
 This module is called once per environment from `environments/<env>/`. `dev`, `staging`, and `prod` are separate stack instances in the **same** AWS account, scoped from each other by VPC and tags.
 
@@ -27,6 +27,7 @@ module "network" {
 | `public_subnet_cidrs`  | `list(string)` | _(required)_ | Three public subnet CIDRs, ordered `[a, b, c]`. |
 | `private_subnet_cidrs` | `list(string)` | _(required)_ | Three private subnet CIDRs, ordered `[a, b, c]`. |
 | `cost_center`          | `string`       | `"platform"` | Cost-allocation tag value. Mirrors the CFN parameter; the env-level provider's `default_tags` is what actually applies it to every resource. |
+| `enable_nat_gateway`   | `bool`         | `false`      | Provision the NAT gateway and route private subnets through it. Default off — when off, the private route table has no default route and private subnets have no internet egress. Flip on if you put workloads in private subnets that need outbound access. |
 
 ## Outputs
 
@@ -49,9 +50,9 @@ module "network" {
 - `aws_internet_gateway.main` — and its (implicit) attachment.
 - `aws_subnet.public["a"|"b"|"c"]` — three public subnets, one per AZ.
 - `aws_subnet.private["a"|"b"|"c"]` — three private subnets, one per AZ.
-- `aws_eip.nat` + `aws_nat_gateway.main` — single NAT in `public-a`. See operational notes.
+- `aws_eip.nat` + `aws_nat_gateway.main` — single NAT in `public-a`, conditional on `enable_nat_gateway`. See operational notes.
 - `aws_route_table.public` + `aws_route.public_default` (→ IGW) + 3× association.
-- `aws_route_table.private` + `aws_route.private_default` (→ NAT) + 3× association.
+- `aws_route_table.private` + 3× association — always created. The default route to NAT (`aws_route.private_default`) is conditional on `enable_nat_gateway`; with NAT off the private route table is intentionally route-less.
 - `aws_security_group.{alb,ecs,rds,jenkins}` — four SGs.
 - `aws_vpc_security_group_ingress_rule.ecs_from_alb` — all TCP from ALB to ECS.
 - `aws_vpc_security_group_ingress_rule.rds_from_ecs` — 5432 from ECS to RDS.
@@ -62,6 +63,10 @@ The cross-SG rules are deliberately split out of the SG resources to avoid Terra
 ## Operational notes
 
 - **Single NAT gateway is intentional, but it's a SPOF.** Originally there were three (one per AZ); we collapsed to one a while back to save money and never put the others back. Anything in the private subnets loses egress if the NAT or `public-a` goes down.
+
+- **NAT defaults off.** `enable_nat_gateway = false` is the default and what dev/staging/prod ship with today. With it off, no EIP / NAT gateway is created and the private route table has no default route — private subnets cannot reach the internet at all. Workloads currently run in the public subnets (e.g. EKS nodes); private subnets are reserved for future use. Flip `enable_nat_gateway = true` in the env tfvars when something actually needs to live in private subnets.
+
+- **EKS-aware subnet tags.** Public subnets carry `kubernetes.io/role/elb = 1`; private subnets carry `kubernetes.io/role/internal-elb = 1`. These are AWS Load Balancer Controller discovery tags and are network-layer properties — they apply whether or not an EKS cluster is up. Per-cluster `kubernetes.io/cluster/<cluster-name>` tags belong to the EKS module, which manages them via `aws_ec2_tag` so the tag's lifecycle tracks the cluster's.
 
 - **Grandfathered CFN exports are not reproduced here.** The CFN template exports two legacy names that predate the `routebox-<env>-<resource>` convention:
   - `${env}-vpc`
