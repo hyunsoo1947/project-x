@@ -6,26 +6,35 @@ Terraform replacement for [`routebox-infra`](https://github.com/312school/routeb
 
 ```
 .
-├── network/                # Reusable module — VPC, subnets, NAT, route tables, default SGs
+├── network/                # Reusable module — VPC, subnets, NAT (optional), route tables, default SGs
 │   ├── main.tf
 │   ├── variables.tf
 │   ├── outputs.tf
 │   └── README.md
+├── eks/                    # Reusable module — EKS cluster, managed node group, addons, IRSA, access entries
+│   ├── main.tf
+│   ├── iam.tf
+│   ├── addons.tf
+│   ├── access.tf
+│   ├── variables.tf
+│   ├── outputs.tf
+│   └── README.md
 └── environments/
-    ├── dev/                # Per-env wiring: provider, backend, tfvars, module call
+    ├── dev/                # Per-env wiring: provider, backend, tfvars, module calls
     ├── staging/
     └── prod/
 ```
 
-The convention is: **one module at the repo root per logical stack, one directory per environment under `environments/`** that consumes it. State lives per-env in S3 (see backend caveat below).
+The convention is: **one module at the repo root per logical stack, and a single Terraform root per environment under `environments/`** that wires every module together. One state per env, even when the env spans multiple modules — `environments/<env>/main.tf` calls both `network` and `eks`. State lives per-env in S3 (see backend caveat below).
 
 ## Migration status
 
-Six CloudFormation stacks live in `routebox-infra/`:
+Six CloudFormation stacks live in `routebox-infra/`, plus one greenfield TF stack with no CFN equivalent:
 
 | Stack                | Status               |
 |----------------------|----------------------|
 | `network`            | **Ported (this repo)** — not yet cut over |
+| `eks`                | **New (this repo)** — no CFN equivalent. Greenfield TF stack; nothing to port. |
 | `iam`                | CFN — not ported     |
 | `ecs-cluster`        | CFN — not ported     |
 | `rds`                | CFN — not ported     |
