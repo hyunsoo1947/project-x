@@ -53,3 +53,9 @@ variable "cost_center" {
   type        = string
   default     = "platform"
 }
+
+variable "enable_nat_gateway" {
+  description = "Whether to provision the NAT gateway and route private subnets through it. Default off — when off, private subnets have no default route and no internet egress. Flip on if you put workloads in private subnets that need outbound access."
+  type        = bool
+  default     = false
+}
