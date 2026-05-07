@@ -128,10 +128,13 @@ resource "aws_eks_addon" "pod_identity" {
 # but older controllers and a few third-party tools still look for it.
 # ------------------------------------------------------------------
 
+# count, not for_each — subnet IDs come from the network module and are
+# unknown at plan time, so they can't be used as for_each map keys.
+# Length is statically 3 (validated on the input variable), so count works.
 resource "aws_ec2_tag" "public_subnet_cluster" {
-  for_each = toset(var.public_subnet_ids)
+  count = length(var.public_subnet_ids)
 
-  resource_id = each.value
+  resource_id = var.public_subnet_ids[count.index]
   key         = "kubernetes.io/cluster/${local.cluster_name}"
   value       = "shared"
 }
