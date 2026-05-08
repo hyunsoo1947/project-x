@@ -1,5 +1,7 @@
 name: CI
 on:
+  push:
+
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -22,5 +24,5 @@ jobs:
           
           cd environments/dev/
           terraform init
-          terraform plan -var-file=dev.tfvars
-          
+          terraform plan -var-file=dev.tfvars -input=false
+          terraform apply -var-file=dev.tfvars -input=false -auto-approve          
