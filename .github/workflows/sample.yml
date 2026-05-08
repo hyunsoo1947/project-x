@@ -1,0 +1,22 @@
+name: CI
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run a multi-line script
+        run: |
+          echo "Current directory: "
+          pwd
+          echo "Files in a current directory"
+          ls
+          echo "structure of files here"
+          tree .
+          echo "wait for 60 seconds"
+          sleep 60
