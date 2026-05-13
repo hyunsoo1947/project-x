@@ -36,7 +36,7 @@ resource "aws_cloudwatch_log_group" "eks_cluster" {
 # ------------------------------------------------------------------
 # Cluster.
 #
-# - Control plane ENIs in public subnets (project decision).
+# - Control plane ENIs in private subnets; API endpoint public.
 # - Endpoint public, IAM-auth gated, CIDR list per env.
 # - All control plane log types on; retention pre-set above.
 # - Envelope encryption for K8s secrets via the customer-managed KMS key.
@@ -52,7 +52,7 @@ resource "aws_eks_cluster" "main" {
   role_arn = aws_iam_role.cluster.arn
 
   vpc_config {
-    subnet_ids              = var.public_subnet_ids
+    subnet_ids              = var.private_subnet_ids
     endpoint_private_access = false
     endpoint_public_access  = true
     public_access_cidrs     = var.endpoint_public_access_cidrs
@@ -83,13 +83,12 @@ resource "aws_eks_cluster" "main" {
 }
 
 # ------------------------------------------------------------------
-# Managed node group. Nodes go in public subnets (project decision)
-# — the network module's public subnets have map_public_ip_on_launch
-# = true, so nodes get public IPs and reach the internet directly.
+# Managed node group. Nodes in private subnets.
 #
-# The default node SG that EKS creates with the managed node group
-# only allows inbound from the cluster control plane, so the public
-# IP isn't reachable from the open internet.
+# With enable_nat_gateway = false (the default), private subnets have
+# no default route — nodes cannot reach the internet to pull images
+# or call AWS APIs. Enable NAT (enable_nat_gateway = true in the env
+# tfvars) or provision VPC endpoints before scheduling workloads.
 #
 # desired_size is ignored after create so the cluster autoscaler
 # (when added later) won't fight Terraform.
@@ -99,7 +98,7 @@ resource "aws_eks_node_group" "main" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "${local.cluster_name}-default"
   node_role_arn   = aws_iam_role.node.arn
-  subnet_ids      = var.public_subnet_ids
+  subnet_ids      = var.private_subnet_ids
 
   instance_types = var.node_instance_types
   capacity_type  = var.node_capacity_type
