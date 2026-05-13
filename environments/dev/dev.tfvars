@@ -19,7 +19,7 @@ private_subnet_cidrs = [
   "10.10.48.0/20",
 ]
 
-enable_nat_gateway = false
+enable_nat_gateway = true
 
 # ------------------------------------------------------------------
 # EKS
