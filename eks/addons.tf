@@ -117,20 +117,36 @@ resource "aws_eks_addon" "pod_identity" {
 }
 
 # ------------------------------------------------------------------
-# Per-cluster subnet tag.
+# Per-cluster subnet tags for the AWS Load Balancer Controller.
 #
-# kubernetes.io/role/elb is on the subnet itself (network module).
+# kubernetes.io/role/elb = "1" (public) and
+# kubernetes.io/role/internal-elb = "1" (private) are set on the
+# subnets in the network module — they're a VPC-level property that
+# applies regardless of cluster state.
+#
 # kubernetes.io/cluster/<cluster-name> = "shared" is cluster-scoped,
-# so it's owned by this module and applied via aws_ec2_tag — that
-# way the tag's lifecycle tracks the cluster, not the network.
+# so its lifecycle tracks the cluster and is owned here via
+# aws_ec2_tag. Both subnet tiers are tagged: public for internet-
+# facing LBs, private for internal LBs.
 #
-# Modern AWS Load Balancer Controller doesn't strictly require this,
-# but older controllers and a few third-party tools still look for it.
+# Modern AWS Load Balancer Controller doesn't strictly require the
+# cluster tag, but older controllers and a few third-party tools
+# still look for it.
+#
+# count, not for_each — subnet IDs come from the network module and
+# are unknown at plan time, so they can't be used as for_each map
+# keys. Length is statically 3 (validated on the input variable), so
+# count works.
 # ------------------------------------------------------------------
 
-# count, not for_each — subnet IDs come from the network module and are
-# unknown at plan time, so they can't be used as for_each map keys.
-# Length is statically 3 (validated on the input variable), so count works.
+resource "aws_ec2_tag" "private_subnet_cluster" {
+  count = length(var.private_subnet_ids)
+
+  resource_id = var.private_subnet_ids[count.index]
+  key         = "kubernetes.io/cluster/${local.cluster_name}"
+  value       = "shared"
+}
+
 resource "aws_ec2_tag" "public_subnet_cluster" {
   count = length(var.public_subnet_ids)
 

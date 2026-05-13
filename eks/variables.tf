@@ -13,8 +13,18 @@ variable "vpc_id" {
   type        = string
 }
 
+variable "private_subnet_ids" {
+  description = "Private subnet IDs the control plane ENIs and managed node group launch into. Three required, one per AZ. The network module's private_subnet_ids. Nodes require outbound internet access (for image pulls, AWS API calls) — enable NAT via enable_nat_gateway = true in the env, or provision VPC endpoints, before scheduling workloads."
+  type        = list(string)
+
+  validation {
+    condition     = length(var.private_subnet_ids) == 3
+    error_message = "private_subnet_ids must have exactly 3 entries."
+  }
+}
+
 variable "public_subnet_ids" {
-  description = "Public subnet IDs the control plane ENIs and managed node group launch into. Three required, one per AZ. The deliberate project choice is to run nodes in public subnets — the network module today ships NAT off, so private subnets have no egress."
+  description = "Public subnet IDs used only for per-cluster LBC subnet tagging (kubernetes.io/cluster/<name> = shared on the public subnets so the AWS Load Balancer Controller can discover them for internet-facing load balancers). Three required. The network module's public_subnet_ids."
   type        = list(string)
 
   validation {
@@ -26,7 +36,7 @@ variable "public_subnet_ids" {
 variable "kubernetes_version" {
   description = "Kubernetes minor version pinned on the EKS cluster. Bump in a separate, deliberate PR — addons follow this version via the aws_eks_addon_version data source."
   type        = string
-  default     = "1.35"
+  default     = "1.32"
 }
 
 variable "endpoint_public_access_cidrs" {

@@ -24,17 +24,19 @@ enable_nat_gateway = false
 # EKS
 # ------------------------------------------------------------------
 
-eks_kubernetes_version           = "1.35"
+eks_kubernetes_version           = "1.32"
 eks_endpoint_public_access_cidrs = ["0.0.0.0/0"]
-eks_node_instance_types          = ["t3.medium"]
-# Recommended for prod workloads (not enabled — costs more):
-# eks_node_instance_types        = ["m6i.large"]
-eks_node_capacity_type = "ON_DEMAND"
-eks_node_disk_size_gb  = 20
-eks_node_min_size      = 3
-eks_node_desired_size  = 3
-eks_node_max_size      = 10
+# t3.medium: 2 vCPU / 4 GiB — minimum viable for prod. Recommended upgrades:
+#   m6i.large  (2 vCPU /  8 GiB) — general purpose, good baseline
+#   m6i.xlarge (4 vCPU / 16 GiB) — higher pod density
+#   c6i.xlarge (4 vCPU /  8 GiB) — compute-heavy services
+eks_node_instance_types = ["t3.medium"]
+eks_node_capacity_type  = "ON_DEMAND"
+eks_node_disk_size_gb   = 20
+eks_node_min_size       = 3
+eks_node_desired_size   = 3
+eks_node_max_size       = 10
 
 eks_cluster_admin_role_arns = [
-  "arn:aws:iam::768485841146:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_Administrator_45719661edf466aa",
+  "arn:aws:iam::199584041425:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_AdministratorAccess_9495c63ac5ca4edd",
 ]

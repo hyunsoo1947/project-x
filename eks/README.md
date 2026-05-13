@@ -12,6 +12,7 @@ module "eks" {
 
   environment                  = var.environment
   vpc_id                       = module.network.vpc_id
+  private_subnet_ids           = module.network.private_subnet_ids
   public_subnet_ids            = module.network.public_subnet_ids
   kubernetes_version           = var.eks_kubernetes_version
   endpoint_public_access_cidrs = var.eks_endpoint_public_access_cidrs
@@ -32,8 +33,9 @@ module "eks" {
 |---------------------------------|----------------|--------------------|-------------|
 | `environment`                   | `string`       | _(required)_       | One of `dev`, `staging`, `prod`. Drives the cluster name and Name tags. |
 | `vpc_id`                        | `string`       | _(required)_       | VPC ID. Pass `module.network.vpc_id`. |
-| `public_subnet_ids`             | `list(string)` | _(required)_       | Three public subnet IDs. Both the control plane ENIs and the node group launch into these. |
-| `kubernetes_version`            | `string`       | `"1.35"`           | EKS Kubernetes minor version. Bump deliberately. |
+| `private_subnet_ids`            | `list(string)` | _(required)_       | Three private subnet IDs. Control plane ENIs and node group launch here. Pass `module.network.private_subnet_ids`. |
+| `public_subnet_ids`             | `list(string)` | _(required)_       | Three public subnet IDs. Used only for LBC cluster subnet tagging. Pass `module.network.public_subnet_ids`. |
+| `kubernetes_version`            | `string`       | `"1.32"`           | EKS Kubernetes minor version. Bump deliberately. |
 | `endpoint_public_access_cidrs`  | `list(string)` | `["0.0.0.0/0"]`    | CIDRs allowed to reach the API. Public + IAM-gated. |
 | `node_instance_types`           | `list(string)` | `["t3.medium"]`    | Allowed node instance types. |
 | `node_capacity_type`            | `string`       | _(required)_       | `SPOT` or `ON_DEMAND`. |
@@ -69,12 +71,12 @@ module "eks" {
 - `aws_iam_openid_connect_provider.eks` (thumbprint via the live cert chain)
 - `aws_iam_role.ebs_csi` — IRSA role for the EBS CSI addon
 - `aws_eks_addon` — `vpc-cni` (prefix delegation on), `coredns`, `kube-proxy`, `aws-ebs-csi-driver`, `eks-pod-identity-agent`
-- `aws_ec2_tag` — per-cluster `kubernetes.io/cluster/<name> = shared` on each public subnet
+- `aws_ec2_tag` — per-cluster `kubernetes.io/cluster/<name> = shared` on all six subnets (private for internal LBs, public for internet-facing LBs)
 - `aws_eks_access_entry` + `aws_eks_access_policy_association` — one pair per ARN in `cluster_admin_role_arns`
 
 ## Operational notes
 
-- **Nodes in public subnets is a deliberate project decision.** The network module ships with NAT off, so private subnets currently have no internet egress; running nodes in public subnets sidesteps the NAT cost. Nodes get public IPs but the EKS-managed node SG only allows inbound from the cluster control plane, so the public IP isn't reachable from the open internet. When NAT is flipped on later, moving nodes to private subnets is a one-line change in the env wiring (swap `public_subnet_ids` for `private_subnet_ids`).
+- **Nodes run in private subnets.** Control plane ENIs and the managed node group both land in `private_subnet_ids`. With `enable_nat_gateway = false` (the network module default), private subnets have no default route — nodes cannot pull container images or reach AWS APIs over the public internet until you either flip `enable_nat_gateway = true` in the env tfvars, or provision VPC endpoints for ECR, S3, and `ec2.` / `eks.` APIs.
 - **API endpoint open to `0.0.0.0/0`.** Auth is still IAM, but anyone on the internet can reach the API. Tighten `endpoint_public_access_cidrs` once we have a stable operator egress IP.
 - **Control plane log retention is 30 days.** Set up front via `aws_cloudwatch_log_group` declared *before* the cluster — otherwise EKS auto-creates the group on first apply with "Never expire", and the explicit `depends_on` ordering matters.
 - **K8s secrets are encrypted** with a customer-managed KMS key (envelope encryption). Rotation is on, deletion window 30 days.
