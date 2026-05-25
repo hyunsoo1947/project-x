@@ -38,5 +38,12 @@ eks_node_desired_size   = 2
 eks_node_max_size       = 4
 
 eks_cluster_admin_role_arns = [
-  "arn:aws:iam::109259679822:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_AdministratorAccess_c3eed6e6b9b65e63",
+  "arn:aws:iam::957117875370:user/hyun_soo_kim",
 ]
+
+# ------------------------------------------------------------------
+# RDS
+# ------------------------------------------------------------------
+rds_instance_class = "db.t3.micro"
+rds_db_name        = "routebox"
+rds_db_username    = "routeboxapp"

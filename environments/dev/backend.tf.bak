@@ -1,0 +1,18 @@
+terraform {
+  backend "s3" {
+    # TODO: Fill in the following before running `terraform init`.
+    # Operators can pass these via -backend-config flags or edit here directly.
+    # Do NOT commit real bucket names/keys to the repo without team sign-off.
+    #
+    #   terraform init \
+    #     -backend-config="bucket=<routebox-tfstate-bucket>" \
+    #     -backend-config="key=dev/network/terraform.tfstate" \
+    #     -backend-config="region=us-east-1" \
+    #     -backend-config="dynamodb_table=<routebox-tfstate-lock>"
+    bucket         = "TODO-fill-in-tfstate-bucket"
+    key            = "TODO-fill-in-state-key"
+    region         = "TODO-fill-in-region"
+    dynamodb_table = "TODO-fill-in-lock-table"
+    encrypt        = true
+  }
+}

@@ -89,3 +89,25 @@ variable "eks_cluster_admin_role_arns" {
   description = "IAM role ARNs to grant cluster-admin via EKS access entries (AmazonEKSClusterAdminPolicy, scope = cluster). Typically the SSO admin role for this account."
   type        = list(string)
 }
+
+# ------------------------------------------------------------------
+# RDS
+# ------------------------------------------------------------------
+
+variable "rds_instance_class" {
+  description = "RDS instance class."
+  type        = string
+  default     = "db.t3.micro"
+}
+
+variable "rds_db_name" {
+  description = "Name of the initial database created on the RDS instance."
+  type        = string
+  default     = "routebox"
+}
+
+variable "rds_db_username" {
+  description = "Master DB username."
+  type        = string
+  default     = "routeboxapp"
+}

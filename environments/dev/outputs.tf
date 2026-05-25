@@ -114,3 +114,22 @@ output "kms_key_arn" {
   description = "KMS key ARN used for K8s secrets envelope encryption."
   value       = module.eks.kms_key_arn
 }
+
+# ------------------------------------------------------------------
+# RDS
+# ------------------------------------------------------------------
+
+output "rds_instance_address" {
+  description = "DNS hostname of the RDS instance."
+  value       = module.rds.db_instance_address
+}
+
+output "rds_instance_port" {
+  description = "Port the RDS instance listens on."
+  value       = module.rds.db_instance_port
+}
+
+output "rds_credentials_secret_arn" {
+  description = "Secrets Manager ARN for RDS master credentials. Reference this ARN in application config; do not read the password from Terraform state."
+  value       = module.rds.credentials_secret_arn
+}

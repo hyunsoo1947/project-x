@@ -42,3 +42,15 @@ module "eks" {
   cluster_admin_role_arns      = var.eks_cluster_admin_role_arns
   cost_center                  = var.cost_center
 }
+
+module "rds" {
+  source = "../../rds"
+
+  environment                = var.environment
+  private_subnet_ids         = module.network.private_subnet_ids
+  rds_security_group_id      = module.network.rds_security_group_id
+  eks_node_security_group_id = module.eks.node_security_group_id
+  instance_class             = var.rds_instance_class
+  db_name                    = var.rds_db_name
+  db_username                = var.rds_db_username
+}
