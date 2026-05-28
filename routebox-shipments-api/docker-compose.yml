@@ -1,0 +1,71 @@
+# Local-dev compose for shipments-api.
+#
+# Brings up Postgres 14 (matches the prod RDS engine version), runs the
+# Flyway migrations from a sibling clone of routebox-db-migrations, then
+# starts the service with ./src bind-mounted for hot reload.
+#
+# This compose file is up to date for this service. Some of the other
+# services' compose files have rotted; this one hasn't.
+#
+# Layout assumed:
+#   ../routebox-db-migrations/flyway/sql/V*.sql
+# If you've cloned to a different path, set ROUTEBOX_MIGRATIONS_DIR.
+
+version: '3.8'
+
+services:
+
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: routebox
+      POSTGRES_PASSWORD: routebox
+      POSTGRES_DB: routebox
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U routebox -d routebox"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    image: flyway/flyway:9-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ${ROUTEBOX_MIGRATIONS_DIR:-../routebox-db-migrations/flyway/sql}:/flyway/sql
+    command: >
+      -url=jdbc:postgresql://postgres:5432/routebox
+      -user=routebox
+      -password=routebox
+      -connectRetries=10
+      migrate
+
+  shipments-api:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      LOG_LEVEL: debug
+      DATABASE_URL: postgres://routebox:routebox@postgres:5432/routebox
+      JWT_SIGNING_KEY: dev-jwt-key-not-real
+      INTERNAL_API_TOKEN: dev-internal-token-not-real
+      LEGACY_EXPORT_ENABLED: 'true'
+      AWS_REGION: us-east-1
+      # SQS_QUEUE_URL intentionally unset — the routeCalcService logs and skips.
+    volumes:
+      - ./src:/app/src
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:

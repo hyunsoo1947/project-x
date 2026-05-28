@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shipments-api
+  labels:
+    app: shipments-api
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  LOG_LEVEL: "info"
+  LEGACY_EXPORT_ENABLED: "true"
+  AWS_REGION: "us-east-1"

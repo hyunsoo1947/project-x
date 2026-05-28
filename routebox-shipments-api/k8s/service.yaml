@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: shipments-api
+  labels:
+    app: shipments-api
+spec:
+  selector:
+    app: shipments-api
+  ports:
+    - port: 80
+      targetPort: 3000

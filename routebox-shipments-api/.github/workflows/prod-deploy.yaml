@@ -1,0 +1,82 @@
+name: Prod Deploy
+
+# triggers on git tag (e.g. v1.0.0, v1.1.0-rc1)
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  prod-deploy:
+    environment: prod
+    runs-on: ubuntu-latest
+    env:
+      ECR_REPOSITORY: routebox-shipments-api
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Verify tag commit is on main
+      run: |
+        git fetch --no-tags origin main:refs/remotes/origin/main
+        if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+          echo "::error::Tag ${GITHUB_REF_NAME} points to commit ${GITHUB_SHA}, which is not on main. Refusing prod deploy."
+          exit 1
+        fi
+        echo "Tag ${GITHUB_REF_NAME} is on main — proceeding."
+
+    - name: AWS Login
+      uses: aws-actions/configure-aws-credentials@v6.1.0
+      with:
+        aws-region: us-east-1
+        role-to-assume: ${{ vars.IAM_ROLE }}
+        role-session-name: gha-session
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+      with:
+        # login to Tooling AWS account where images live
+        registries: "401413892014"
+
+    - name: Resolve tags
+      run: |
+        echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+        echo "RELEASE_TAG=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+
+    - name: Retag ECR image with release tag
+      run: |
+        MANIFEST=$(aws ecr batch-get-image \
+          --registry-id 401413892014 \
+          --repository-name "${ECR_REPOSITORY}" \
+          --image-ids imageTag="${IMAGE_TAG}" \
+          --query 'images[0].imageManifest' \
+          --output text)
+
+        if [ -z "$MANIFEST" ] || [ "$MANIFEST" = "None" ]; then
+          echo "::error::No image found in ECR for tag ${IMAGE_TAG}. The commit must be built via build.yaml first."
+          exit 1
+        fi
+
+        aws ecr put-image \
+          --registry-id 401413892014 \
+          --repository-name "${ECR_REPOSITORY}" \
+          --image-tag "${RELEASE_TAG}" \
+          --image-manifest "$MANIFEST"
+
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig --region us-east-1 --name ${{ vars.CLUSTER_NAME }}
+
+    - name: Deploy to Kubernetes/EKS
+      run: |
+        helm upgrade --install shipments-api ./helm/shipments-api \
+          --namespace app-${{ vars.STAGE }} --create-namespace \
+          --set image.tag=${RELEASE_TAG} \
+          --values ./helm/shipments-api/${{ vars.STAGE }}-values.yaml

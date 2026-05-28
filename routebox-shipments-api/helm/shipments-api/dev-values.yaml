@@ -1,0 +1,21 @@
+app_name: shipments-api
+
+replicaCount: 1
+
+image:
+  repository: 401413892014.dkr.ecr.us-east-1.amazonaws.com/routebox-shipments-api
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 3000
+  targetPort: 3000
+
+containerPort: 3000
+
+config:
+  NODE_ENV: "development"
+  PORT: "3000"
+  LOG_LEVEL: "debug"
+  LEGACY_EXPORT_ENABLED: "true"
+  AWS_REGION: "us-east-1"
