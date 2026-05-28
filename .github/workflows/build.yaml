@@ -7,26 +7,25 @@ on:
       - staging
       - feature/*
 permissions:
-  id-token: write   # This is required for requesting the JWT
-  contents: read    # This is required for actions/checkout
+  id-token: write
+  contents: read
 
 jobs:
   build-and-deploy:
-    # if staging branch => use staging environment  
-    # otherwise => use dev environment,
     environment: ${{ github.ref == 'refs/heads/staging' && 'staging' || 'dev' }}
      
     runs-on: ubuntu-latest
     env:
       ECR_REPOSITORY: routebox-shipments-api
-      # IMAGE_TAG: ${{ github.sha }}
-    # defaults:
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
-    
+      uses: actions/checkout@v4
+
+    - name: Check files
+      run: ls -la routebox-shipments-api/
+
     - name: AWS Login
-      uses: aws-actions/configure-aws-credentials@v6.1.0
+      uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-region: us-east-1
         role-to-assume: ${{ vars.IAM_ROLE }}
@@ -36,7 +35,6 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
       with:
-        # login to Tooling AWS account to push images to ECR
         registries: "957117875370"
 
     - name: Get short SHA
@@ -60,7 +58,7 @@ jobs:
 
     - name: Deploy to Kubernetes/EKS
       run: |
-        helm upgrade --install shipments-api ./helm/shipments-api \
+        helm upgrade --install shipments-api ./routebox-shipments-api/helm/shipments-api \
           --namespace app-${{ vars.STAGE }} --create-namespace \
           --set image.tag=${IMAGE_TAG} \
-          --values ./helm/shipments-api/${{ vars.STAGE }}-values.yaml
+          --values ./routebox-shipments-api/helm/shipments-api/${{ vars.STAGE }}-values.yaml
