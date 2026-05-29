@@ -3,7 +3,7 @@ app_name: shipments-api
 replicaCount: 3
 
 image:
-  repository: 401413892014.dkr.ecr.us-east-1.amazonaws.com/routebox-shipments-api
+  repository: 957117875370.dkr.ecr.us-east-1.amazonaws.com/routebox-shipments-api
   tag: ""
   pullPolicy: IfNotPresent
 
