@@ -20,8 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ECR_REPOSITORY: routebox-shipments-api
-      # IMAGE_TAG: ${{ github.sha }}
-    # defaults:
+    defaults:
+      run:
+        working-directory: routebox-shipments-api
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
@@ -37,7 +38,6 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
       with:
-        # login to Tooling AWS account to push images to ECR
         registries: "401413892014"
 
     - name: Get short SHA
