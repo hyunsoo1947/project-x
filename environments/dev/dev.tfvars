@@ -39,6 +39,7 @@ eks_node_max_size       = 4
 
 eks_cluster_admin_role_arns = [
   "arn:aws:iam::957117875370:user/hyun_soo_kim",
+  "arn:aws:iam::957117875370:role/gha-app-dev"
 ]
 
 # ------------------------------------------------------------------
