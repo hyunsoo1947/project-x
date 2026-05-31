@@ -1,40 +1,33 @@
 name: Terraform Deploy
-
 on:
   push:
     branches:
       - main
-
+      - staging
 permissions:
   id-token: write
   contents: read
-
 jobs:
   terraform:
     name: Terraform Apply
     runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/staging' && 'staging' || 'dev' }}
     defaults:
       run:
-        working-directory: environments/dev
-
+        working-directory: ${{ vars.WORKING_DIR }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: us-east-1
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
-
       - name: Terraform Init
-        run: terraform init
-
+        run: terraform init -backend-config="bucket=${{ vars.STATE_BUCKET }}"
       - name: Terraform Plan
-        run: terraform plan -input=false -var-file=dev.tfvars
-
+        run: terraform plan -input=false -var-file=${{ github.ref == 'refs/heads/staging' && 'staging' || 'dev' }}.tfvars
       - name: Terraform Apply
-        run: terraform apply -auto-approve -input=false -var-file=dev.tfvars
+        run: terraform apply -auto-approve -input=false -var-file=${{ github.ref == 'refs/heads/staging' && 'staging' || 'dev' }}.tfvars
