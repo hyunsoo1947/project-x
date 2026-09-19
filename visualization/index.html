@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Interactive 3D view of the Routebox AWS infrastructure" />
+    <title>Routebox Infrastructure · 3D</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <header>
+      <div>
+        <p class="eyebrow">ROUTEBOX / AWS</p>
+        <h1>Infrastructure in three dimensions</h1>
+        <p class="subtitle">Drag to orbit · right-drag to pan · scroll to zoom</p>
+      </div>
+      <div class="actions">
+        <button id="bird-view" type="button">Bird’s-eye view</button>
+        <button id="reset-view" type="button" class="secondary">Reset view</button>
+      </div>
+    </header>
+
+    <main id="scene" aria-label="Interactive 3D infrastructure visualization">
+      <div id="loading">Building 3D scene…</div>
+      <aside class="legend" aria-label="Diagram legend">
+        <strong>Architecture</strong>
+        <span><i class="swatch public"></i>Public subnet</span>
+        <span><i class="swatch private"></i>Private subnet</span>
+        <span><i class="swatch compute"></i>EKS compute</span>
+        <span><i class="swatch data"></i>RDS · dev only</span>
+        <span><i class="line"></i>GitHub Actions deploy flow</span>
+      </aside>
+      <div class="hint">Select a component to inspect it</div>
+      <section id="details" class="details" aria-live="polite">
+        <button id="close-details" type="button" aria-label="Close details">×</button>
+        <p class="eyebrow" id="detail-type">COMPONENT</p>
+        <h2 id="detail-title">Routebox infrastructure</h2>
+        <p id="detail-copy">Select any glowing object to see its role in the architecture.</p>
+      </section>
+    </main>
+    <noscript>This visualization requires JavaScript.</noscript>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
